@@ -1,0 +1,17 @@
+version: '3'
+
+tasks:
+  dev:
+    desc: Run development server with hot reload
+    cmds:
+      - wails3 dev
+
+  build:
+    desc: Build production binary
+    cmds:
+      - go build -tags gtk3 -o build/bin/webdesk .
+
+  clean:
+    desc: Clean build artifacts
+    cmds:
+      - rm -rf build/bin

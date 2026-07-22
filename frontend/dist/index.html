@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebDesk</title>
+    <link rel="stylesheet" href="./style.css">
+    <script type="importmap">
+    {
+        "imports": {
+            "@wailsio/runtime": "./node_modules/@wailsio/runtime/dist/index.js"
+        }
+    }
+    </script>
+</head>
+<body>
+    <div class="app">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <span class="logo-icon">⚡</span>
+                    <span class="logo-text">WebDesk</span>
+                </div>
+            </div>
+            <div class="sidebar-search">
+                <input type="text" id="search-input" placeholder="搜索站点..." class="search-input">
+            </div>
+            <div class="sidebar-content" id="sites-container">
+            </div>
+            <div class="sidebar-footer">
+                <button class="btn-add" id="btn-add-site" title="添加站点">
+                    <span class="btn-icon">+</span>
+                    <span class="btn-text">添加站点</span>
+                </button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <button class="sidebar-toggle" id="btn-sidebar-toggle" title="切换侧边栏">☰</button>
+            <div class="welcome-screen" id="welcome-screen">
+                <div class="welcome-icon">⚡</div>
+                <h1 class="welcome-title">WebDesk</h1>
+                <p class="welcome-desc">从左侧选择一个站点开始，或点击「添加站点」配置你的常用网站</p>
+                <div class="welcome-shortcuts" id="welcome-shortcuts"></div>
+            </div>
+            <iframe id="site-frame" class="site-frame" sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-downloads allow-modals allow-popups-to-escape-sandbox" allow="clipboard-read; clipboard-write" style="display:none;"></iframe>
+        </main>
+    </div>
+
+    <div class="modal-overlay" id="modal-overlay">
+        <div class="modal" id="site-modal">
+            <div class="modal-header">
+                <h2 id="modal-title">添加站点</h2>
+                <button class="modal-close" id="btn-modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="input-name">站点名称</label>
+                    <input type="text" id="input-name" placeholder="例如：公司邮箱" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label for="input-url">站点地址</label>
+                    <input type="text" id="input-url" placeholder="例如：mail.company.com" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label for="input-icon">图标 (Emoji)</label>
+                    <div class="icon-picker">
+                        <input type="text" id="input-icon" placeholder="🌐" class="form-input icon-input" maxlength="2">
+                        <div class="icon-suggestions" id="icon-suggestions">
+                            <span class="icon-option" data-icon="📧">📧</span>
+                            <span class="icon-option" data-icon="📊">📊</span>
+                            <span class="icon-option" data-icon="📝">📝</span>
+                            <span class="icon-option" data-icon="🐙">🐙</span>
+                            <span class="icon-option" data-icon="📋">📋</span>
+                            <span class="icon-option" data-icon="🔧">🔧</span>
+                            <span class="icon-option" data-icon="💬">💬</span>
+                            <span class="icon-option" data-icon="📁">📁</span>
+                            <span class="icon-option" data-icon="🎓">🎓</span>
+                            <span class="icon-option" data-icon="🔍">🔍</span>
+                            <span class="icon-option" data-icon="☁️">☁️</span>
+                            <span class="icon-option" data-icon="🎨">🎨</span>
+                            <span class="icon-option" data-icon="📱">📱</span>
+                            <span class="icon-option" data-icon="🔒">🔒</span>
+                            <span class="icon-option" data-icon="🌐">🌐</span>
+                            <span class="icon-option" data-icon="📚">📚</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="input-category">分类</label>
+                    <input type="text" id="input-category" placeholder="例如：常用、开发、办公" class="form-input" list="category-list">
+                    <datalist id="category-list"></datalist>
+                </div>
+                <div class="form-group">
+                    <label for="input-openmode">打开方式</label>
+                    <select id="input-openmode" class="form-input">
+                        <option value="embed">内嵌显示</option>
+                        <option value="chrome">Chrome 打开</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" id="btn-cancel">取消</button>
+                <button class="btn-save" id="btn-save">保存</button>
+            </div>
+        </div>
+
+        <div class="modal context-menu" id="context-menu">
+            <button class="context-item" id="ctx-edit">✏️ 编辑站点</button>
+            <button class="context-item" id="ctx-chrome">🖥️ 用 Chrome 打开</button>
+            <button class="context-item" id="ctx-shortcut">🔗 创建快捷方式</button>
+            <button class="context-item context-item-danger" id="ctx-delete">🗑️ 删除站点</button>
+        </div>
+    </div>
+
+    <script type="module" src="./src/main.js"></script>
+</body>
+</html>
