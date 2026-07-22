@@ -42,6 +42,7 @@ type SiteService struct {
 	winMu          sync.Mutex
 	openWindows    map[string]uintptr
 	pendingWindows map[string]bool
+	autoOpen       string
 }
 
 func NewSiteService() *SiteService {
@@ -60,6 +61,33 @@ func NewSiteService() *SiteService {
 		s.save()
 	}
 	return s
+}
+
+func (s *SiteService) SetAutoOpen(url string) {
+	s.autoOpen = normalizeURL(url)
+}
+
+func (s *SiteService) StartAutoOpen() {
+	if s.autoOpen == "" {
+		return
+	}
+	url := s.autoOpen
+	go func() {
+		time.Sleep(800 * time.Millisecond)
+		s.OpenSite(url)
+	}()
+}
+
+func (s *SiteService) IsChromeModeSite(url string) bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	url = normalizeURL(url)
+	for _, site := range s.sites {
+		if site.URL == url && site.OpenMode == "chrome" {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *SiteService) HasChrome() bool {

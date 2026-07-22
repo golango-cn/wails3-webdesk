@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -31,8 +32,15 @@ func main() {
 		return
 	}
 
-	startURL := "/"
+	svc := NewSiteService()
+	startMinimized := openURL != "" && svc.IsChromeModeSite(normalizeURL(openURL))
+
 	if openURL != "" {
+		svc.SetAutoOpen(openURL)
+	}
+
+	startURL := "/"
+	if openURL != "" && !startMinimized {
 		startURL = "/?open=" + openURL
 	}
 
@@ -40,7 +48,7 @@ func main() {
 		Name:        "WebDesk",
 		Description: "把网站当应用用的桌面壳",
 		Services: []application.Service{
-			application.NewService(NewSiteService()),
+			application.NewService(svc),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.BundledAssetFileServer(assets),
@@ -50,7 +58,7 @@ func main() {
 		},
 	})
 
-	app.Window.NewWithOptions(application.WebviewWindowOptions{
+	win := app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:            "WebDesk",
 		Width:            1280,
 		Height:           800,
@@ -63,8 +71,16 @@ func main() {
 		},
 	})
 
+	if startMinimized && win != nil {
+		go func() {
+			time.Sleep(300 * time.Millisecond)
+			win.Hide()
+		}()
+	}
+
+	svc.StartAutoOpen()
+
 	if err := app.Run(); err != nil {
 		log.Fatal(err)
 	}
-	_ = os.Stdout
 }
