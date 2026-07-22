@@ -4,6 +4,7 @@ import (
 	"embed"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -16,9 +17,13 @@ var iconData []byte
 
 func main() {
 	openURL := ""
-	for i, arg := range os.Args[1:] {
-		if arg == "--open" && i+1 < len(os.Args[1:]) {
-			openURL = os.Args[i+2]
+	for _, arg := range os.Args[1:] {
+		if strings.HasPrefix(arg, "--open=") {
+			openURL = strings.TrimPrefix(arg, "--open=")
+		} else if arg == "--open" {
+			continue
+		} else if openURL == "" && !strings.HasPrefix(arg, "--") {
+			openURL = arg
 		}
 	}
 

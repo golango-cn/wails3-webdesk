@@ -435,7 +435,22 @@ func (s *SiteService) startIPCListener() {
 			n, _ := conn.Read(buf)
 			url := strings.TrimSpace(string(buf[:n]))
 			conn.Close()
-			if url != "" {
+			if url == "" {
+				continue
+			}
+			s.mu.RLock()
+			var site *Site
+			for i := range s.sites {
+				if s.sites[i].URL == url {
+					site = &s.sites[i]
+					break
+				}
+			}
+			s.mu.RUnlock()
+
+			if site != nil && site.OpenMode == "chrome" && s.hasChrome {
+				s.OpenSite(url)
+			} else {
 				s.pendingMu.Lock()
 				s.pendingOpen = url
 				s.pendingMu.Unlock()

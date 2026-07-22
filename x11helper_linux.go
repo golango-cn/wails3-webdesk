@@ -113,7 +113,52 @@ static int activateWindow(unsigned long wid) {
 	XChangeProperty(d, w, net_wm_state, XA_ATOM, 32, PropModeReplace,
 	                (unsigned char*)new_states, new_count);
 
-	// Step 5: Send _NET_ACTIVE_WINDOW (source=pager)
+	// Step 5: Also activate the Chrome main window if this is a Chrome app child
+	// This is needed because Mutter manages _NET_ACTIVE_WINDOW per top-level
+	Window chromeMain = 0;
+	Window r2, *c2; unsigned int n2;
+	if (XQueryTree(d, root, &r2, &chromeMain, &c2, &n2) != 0 && c2) {
+		// We need to scan root children for Chrome main window
+		XFree(c2);
+	}
+	// Find Chrome main window from root children
+	Window root2 = DefaultRootWindow(d);
+	Window parent2, *children2;
+	unsigned int nchildren2;
+	chromeMain = 0;
+	if (XQueryTree(d, root2, &root2, &parent2, &children2, &nchildren2) != 0) {
+		for (unsigned int i = 0; i < nchildren2; i++) {
+			XClassHint ch2;
+			if (XGetClassHint(d, children2[i], &ch2) != 0) {
+				if (strcmp(ch2.res_class, "Google-chrome") == 0 &&
+				    strcmp(ch2.res_name, "google-chrome") == 0) {
+					chromeMain = children2[i];
+				}
+				XFree(ch2.res_name);
+				XFree(ch2.res_class);
+				if (chromeMain) break;
+			}
+		}
+		if (children2) XFree(children2);
+	}
+	if (chromeMain) {
+		XMapRaised(d, chromeMain);
+		XEvent ev3 = {0};
+		ev3.xclient.type = ClientMessage;
+		ev3.xclient.window = chromeMain;
+		ev3.xclient.message_type = net_active_window;
+		ev3.xclient.format = 32;
+		ev3.xclient.data.l[0] = 2; // pager
+		ev3.xclient.data.l[1] = CurrentTime;
+		ev3.xclient.data.l[2] = 0;
+		ev3.xclient.data.l[3] = 0;
+		ev3.xclient.data.l[4] = 0;
+		XSendEvent(d, root, False,
+		           SubstructureRedirectMask | SubstructureNotifyMask, &ev3);
+		XRaiseWindow(d, chromeMain);
+	}
+
+	// Step 6: Send _NET_ACTIVE_WINDOW to target (source=pager)
 	XEvent ev2 = {0};
 	ev2.xclient.type = ClientMessage;
 	ev2.xclient.window = w;
@@ -127,7 +172,7 @@ static int activateWindow(unsigned long wid) {
 	XSendEvent(d, root, False,
 	           SubstructureRedirectMask | SubstructureNotifyMask, &ev2);
 
-	// Step 6: Direct raise + focus
+	// Step 7: Direct raise + focus
 	XRaiseWindow(d, top);
 	XRaiseWindow(d, w);
 	XSetInputFocus(d, w, RevertToPointerRoot, CurrentTime);
@@ -166,6 +211,37 @@ static void findAppWindowsRecursive(Display *d, Window w,
 		findAppWindowsRecursive(d, children[i], out, count, maxOut);
 	}
 	XFree(children);
+}
+
+static unsigned long findChromeMainWindow() {
+	Display *d = XOpenDisplay(NULL);
+	if (!d) return 0;
+	Window root = DefaultRootWindow(d);
+	Window parent, *children;
+	unsigned int nchildren;
+	unsigned long result = 0;
+
+	if (XQueryTree(d, root, &root, &parent, &children, &nchildren) == 0) {
+		XCloseDisplay(d);
+		return 0;
+	}
+
+	for (unsigned int i = 0; i < nchildren; i++) {
+		XClassHint ch;
+		if (XGetClassHint(d, children[i], &ch) != 0) {
+			if (strcmp(ch.res_class, "Google-chrome") == 0 &&
+			    strcmp(ch.res_name, "google-chrome") == 0) {
+				result = (unsigned long)children[i];
+			}
+			XFree(ch.res_name);
+			XFree(ch.res_class);
+			if (result) break;
+		}
+	}
+
+	if (children) XFree(children);
+	XCloseDisplay(d);
+	return result;
 }
 
 static int findAllAppWindows(unsigned long *out, int maxOut) {

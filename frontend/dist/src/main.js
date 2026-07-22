@@ -67,6 +67,9 @@ function startIPCPolling() {
                 const site = sites.find(s => s.url === url)
                 if (site) {
                     openSite(site.id)
+                    if (site.openMode !== 'chrome') {
+                        SiteService.WindowFocus()
+                    }
                 } else {
                     SiteService.SetTitle(url + ' - WebDesk')
                     document.getElementById('welcome-screen').style.display = 'none'
@@ -74,8 +77,8 @@ function startIPCPolling() {
                     frame.style.display = 'block'
                     frame.src = 'about:blank'
                     requestAnimationFrame(() => { frame.src = url })
+                    SiteService.WindowFocus()
                 }
-                SiteService.WindowFocus()
             }
         } catch (e) {}
     }, 500)
