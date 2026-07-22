@@ -32,17 +32,18 @@ type Site struct {
 }
 
 type SiteService struct {
-	mu             sync.RWMutex
-	sites          []Site
-	chrome         string
-	hasChrome      bool
-	pendingMu      sync.Mutex
-	pendingOpen    string
-	listener       net.Listener
-	winMu          sync.Mutex
-	openWindows    map[string]uintptr
-	pendingWindows map[string]bool
-	autoOpen       string
+	mu               sync.RWMutex
+	sites            []Site
+	chrome           string
+	hasChrome        bool
+	pendingMu        sync.Mutex
+	pendingOpen      string
+	listener         net.Listener
+	winMu            sync.Mutex
+	openWindows      map[string]uintptr
+	pendingWindows   map[string]bool
+	autoOpen         string
+	mainWindowHidden bool
 }
 
 func NewSiteService() *SiteService {
@@ -205,10 +206,18 @@ func (s *SiteService) Reorder(ids []string) error {
 	return nil
 }
 
+func (s *SiteService) SetMainWindowHidden(hidden bool) {
+	s.mainWindowHidden = hidden
+}
+
 func (s *SiteService) WindowFocus() {
 	app := application.Get()
 	w := app.Window.Current()
 	if w != nil {
+		if s.mainWindowHidden {
+			w.Show()
+			s.mainWindowHidden = false
+		}
 		w.Focus()
 	}
 }

@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -58,7 +57,7 @@ func main() {
 		},
 	})
 
-	win := app.Window.NewWithOptions(application.WebviewWindowOptions{
+	app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:            "WebDesk",
 		Width:            1280,
 		Height:           800,
@@ -66,16 +65,14 @@ func main() {
 		MinHeight:        600,
 		BackgroundColour: application.NewRGB(30, 30, 46),
 		URL:              startURL,
+		Hidden:           startMinimized,
 		Linux: application.LinuxWindow{
 			Icon: iconData,
 		},
 	})
 
-	if startMinimized && win != nil {
-		go func() {
-			time.Sleep(300 * time.Millisecond)
-			win.Hide()
-		}()
+	if startMinimized {
+		svc.SetMainWindowHidden(true)
 	}
 
 	svc.StartAutoOpen()
