@@ -250,7 +250,9 @@ static int findAllAppWindowsByTitle(const char *substr, unsigned long *out, int 
 */
 import "C"
 import (
+	"os/exec"
 	"strings"
+	"syscall"
 	"unsafe"
 )
 
