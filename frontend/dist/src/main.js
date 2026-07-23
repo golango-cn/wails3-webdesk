@@ -465,6 +465,26 @@ function bindEvents() {
             dot.classList.add('active')
         })
     })
+
+    // Opacity slider
+    const opacitySlider = $('#opacity-slider')
+    initOpacity()
+    opacitySlider.addEventListener('input', () => {
+        const val = opacitySlider.value / 100
+        SiteService.SetOpacity(val)
+        SiteService.SaveSettings('opacity', String(opacitySlider.value))
+    })
+}
+
+async function initOpacity() {
+    const opacitySlider = $('#opacity-slider')
+    try {
+        const saved = await SiteService.LoadSetting('opacity')
+        if (saved) {
+            opacitySlider.value = saved
+            SiteService.SetOpacity(saved / 100)
+        }
+    } catch (e) {}
 }
 
 function escapeHtml(str) {

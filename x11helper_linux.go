@@ -14,6 +14,16 @@ static int catch_xerror(Display *d, XErrorEvent *e) {
 	return 0;
 }
 
+static void setWindowOpacity(unsigned long wid, unsigned long opacity) {
+	Display *d = XOpenDisplay(NULL);
+	if (!d) return;
+	Atom net_wm_opacity = XInternAtom(d, "_NET_WM_WINDOW_OPACITY", False);
+	XChangeProperty(d, (Window)wid, net_wm_opacity, XA_CARDINAL, 32,
+	                PropModeReplace, (unsigned char*)&opacity, 1);
+	XFlush(d);
+	XCloseDisplay(d);
+}
+
 static int isWindowAlive(unsigned long wid) {
 	Display *d = XOpenDisplay(NULL);
 	if (!d) return 0;
@@ -250,11 +260,34 @@ static int findAllAppWindowsByTitle(const char *substr, unsigned long *out, int 
 */
 import "C"
 import (
+	"fmt"
 	"os/exec"
 	"strings"
 	"syscall"
 	"unsafe"
 )
+
+func setWindowOpacity(wid uintptr, opacity uint32) {
+	C.setWindowOpacity(C.ulong(wid), C.ulong(opacity))
+}
+
+func setLinuxWindowOpacity(opacity float64) {
+	if opacity < 0.1 {
+		opacity = 0.1
+	}
+	if opacity > 1.0 {
+		opacity = 1.0
+	}
+	// Use xprop to find and set _NET_WM_WINDOW_OPACITY on WebDesk windows
+	value := uint32(opacity * 0xFFFFFFFF)
+	hex := fmt.Sprintf("0x%x", value)
+	// Find all windows belonging to our app and set opacity
+	cmd := exec.Command("sh", "-c",
+		fmt.Sprintf(`for wid in $(xdotool search --class Webdesk 2>/dev/null || xdotool search --name WebDesk 2>/dev/null); do xprop -id "$wid" -f _NET_WM_WINDOW_OPACITY 32c -set _NET_WM_WINDOW_OPACITY %s 2>/dev/null; done`, hex))
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+	cmd.Run()
+}
 
 func setWMClass(wid uintptr, name, class string) {
 	cName := C.CString(name)

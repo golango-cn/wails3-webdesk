@@ -232,6 +232,17 @@ func (s *SiteService) SetTitle(title string) {
 	}
 }
 
+func (s *SiteService) SetOpacity(opacity float64) {
+	// opacity: 0.0 (invisible) ~ 1.0 (fully opaque)
+	if opacity < 0.1 {
+		opacity = 0.1
+	}
+	if opacity > 1.0 {
+		opacity = 1.0
+	}
+	setLinuxWindowOpacity(opacity)
+}
+
 func (s *SiteService) OpenSite(url string) error {
 	if !s.hasChrome {
 		return fmt.Errorf("Chrome not found")

@@ -547,6 +547,55 @@ body {
     box-shadow: 0 0 0 2px rgba(205, 214, 244, 0.3);
 }
 
+.opacity-control {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 4px;
+    padding-left: 8px;
+    border-left: 1px solid var(--border);
+}
+
+.opacity-icon {
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.opacity-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 60px;
+    height: 4px;
+    background: var(--bg-active);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+}
+
+.opacity-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    transition: transform 0.15s ease;
+}
+
+.opacity-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+}
+
+.opacity-slider::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: none;
+    cursor: pointer;
+}
+
 /* ===== Modal ===== */
 .modal-overlay {
     position: fixed;
