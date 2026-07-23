@@ -9,7 +9,10 @@
 - **Chrome 模式** — 通过 `chrome --app` 打开站点为独立窗口，自动领养窗口、单实例复用
 - **桌面快捷方式** — 一键创建 `.desktop` 快捷方式到桌面
 - **单实例 IPC** — 第二次启动自动转发 URL 到已有实例
-- **5 色主题** — 靛蓝 / 青蓝 / 玫瑰 / 琥珀 / 翠绿，设置持久化
+- **10 色主题** — 靛蓝 / 青蓝 / 玫瑰 / 琥珀 / 翠绿 / 薰衣草 / 蜜桃 / 紫藤 / 碧波 / 天际，设置持久化
+- **自定义标题栏** — Frameless 窗口 + CSS 自绘标题栏，主题色联动
+- **窗口透明度** — 滑块调节整体透明度（标题栏 / 侧边栏 / 内容区 / Chrome 窗口），设置持久化
+- **跨平台** — Linux (X11) + Windows，平台特定透明度实现
 - **GNOME Dock 集成** — 自动安装 `.desktop` 文件并添加到收藏栏
 - **Chrome 窗口领养** — X11 递归遍历窗口树，自动识别并管理 Chrome `--app` 窗口
 
@@ -35,11 +38,14 @@ sudo apt install libgtk-3-dev libwebkit2gtk-4.0-dev
 # Linux (GTK3, Ubuntu 22.04 必须)
 wails3 build -tags gtk3
 
+# Windows 交叉编译（隐藏控制台窗口）
+GOOS=windows GOARCH=amd64 go build -ldflags="-H windowsgui" -o build/bin/webdesk.exe .
+
 # 或使用 Makefile
 make linux
 ```
 
-编译产物在 `build/bin/webdesk`。
+编译产物在 `build/bin/webdesk`（Linux）或 `build/bin/webdesk.exe`（Windows）。
 
 ## 运行
 
@@ -65,7 +71,7 @@ make linux
 ├── main.go                  # 入口：参数解析、窗口创建、单实例
 ├── siteservice.go           # 核心服务：站点 CRUD、Chrome 窗口管理、IPC、设置持久化
 ├── x11helper_linux.go       # Linux X11 CGO：窗口查找、激活、WM_CLASS 修改
-├── x11helper_other.go       # 非 Linux 平台桩函数
+├── x11helper_other.go       # Windows 透明度（Win32 SetLayeredWindowAttributes）
 ├── icon.svg                 # 源矢量图标
 ├── icon.png                 # 512x512 应用图标
 ├── wails.json               # Wails 项目配置
@@ -86,7 +92,7 @@ make linux
 | 文件 | 说明 |
 |------|------|
 | `~/.config/webdesk/sites.json` | 站点列表 |
-| `~/.config/webdesk/settings.json` | 主题等设置 |
+| `~/.config/webdesk/settings.json` | 主题、透明度等设置 |
 | `~/.cache/webdesk/webdesk.png` | 缓存的应用图标 |
 | `~/.cache/webdesk/ipc.sock` | 单实例 IPC 套接字 |
 
@@ -103,6 +109,12 @@ Mutter 窗口管理器要求 `_NET_ACTIVE_WINDOW` ClientMessage 的 `source` 参
 ### GTK3 构建
 
 Ubuntu 22.04 没有 GTK4 和 WebKitGTK 6.0，必须使用 `-tags gtk3` 编译。
+
+### 窗口透明度
+
+- **Linux**：通过 X11 `_NET_WM_WINDOW_OPACITY` 属性设置，CGO 调用 `XChangeProperty`
+- **Windows**：通过 Win32 `SetLayeredWindowAttributes` 设置，需先用 `GetAncestor` 获取顶层窗口再添加 `WS_EX_LAYERED` 样式
+- **Chrome 模式窗口**：遍历已追踪的 XID/HWND 逐个设置透明度
 
 ## License
 
