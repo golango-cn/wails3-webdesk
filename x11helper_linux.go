@@ -24,6 +24,36 @@ static void setWindowOpacity(unsigned long wid, unsigned long opacity) {
 	XCloseDisplay(d);
 }
 
+// Find top-level window by WM_CLASS and set its opacity
+static void setAppWindowOpacity(const char *wmClass, unsigned long opacity) {
+	Display *d = XOpenDisplay(NULL);
+	if (!d) return;
+	Window root = DefaultRootWindow(d);
+	Atom net_wm_opacity = XInternAtom(d, "_NET_WM_WINDOW_OPACITY", False);
+
+	// Search top-level windows for matching WM_CLASS
+	Window parent, *children;
+	unsigned int nchildren;
+	if (XQueryTree(d, root, &root, &parent, &children, &nchildren) == 0) {
+		XCloseDisplay(d);
+		return;
+	}
+	for (unsigned int i = 0; i < nchildren; i++) {
+		XClassHint ch;
+		if (XGetClassHint(d, children[i], &ch) != 0) {
+			if (strcmp(ch.res_class, wmClass) == 0) {
+				XChangeProperty(d, children[i], net_wm_opacity, XA_CARDINAL, 32,
+				                PropModeReplace, (unsigned char*)&opacity, 1);
+			}
+			XFree(ch.res_name);
+			XFree(ch.res_class);
+		}
+	}
+	if (children) XFree(children);
+	XFlush(d);
+	XCloseDisplay(d);
+}
+
 static int isWindowAlive(unsigned long wid) {
 	Display *d = XOpenDisplay(NULL);
 	if (!d) return 0;
@@ -260,7 +290,6 @@ static int findAllAppWindowsByTitle(const char *substr, unsigned long *out, int 
 */
 import "C"
 import (
-	"fmt"
 	"os/exec"
 	"strings"
 	"syscall"
@@ -278,15 +307,10 @@ func setLinuxWindowOpacity(opacity float64) {
 	if opacity > 1.0 {
 		opacity = 1.0
 	}
-	// Use xprop to find and set _NET_WM_WINDOW_OPACITY on WebDesk windows
-	value := uint32(opacity * 0xFFFFFFFF)
-	hex := fmt.Sprintf("0x%x", value)
-	// Find all windows belonging to our app and set opacity
-	cmd := exec.Command("sh", "-c",
-		fmt.Sprintf(`for wid in $(xdotool search --class Webdesk 2>/dev/null || xdotool search --name WebDesk 2>/dev/null); do xprop -id "$wid" -f _NET_WM_WINDOW_OPACITY 32c -set _NET_WM_WINDOW_OPACITY %s 2>/dev/null; done`, hex))
-	cmd.Stdout = nil
-	cmd.Stderr = nil
-	cmd.Run()
+	value := C.ulong(uint32(opacity * 0xFFFFFFFF))
+	cClass := C.CString("Webdesk")
+	defer C.free(unsafe.Pointer(cClass))
+	C.setAppWindowOpacity(cClass, value)
 }
 
 func setWMClass(wid uintptr, name, class string) {

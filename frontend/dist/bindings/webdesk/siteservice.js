@@ -170,6 +170,14 @@ export function SetMainWindowHidden(hidden) {
 }
 
 /**
+ * @param {number} opacity
+ * @returns {$CancellablePromise<void>}
+ */
+export function SetOpacity(opacity) {
+    return $Call.ByID(3058160699, opacity);
+}
+
+/**
  * @param {string} title
  * @returns {$CancellablePromise<void>}
  */

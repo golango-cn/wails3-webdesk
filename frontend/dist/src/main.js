@@ -481,8 +481,12 @@ async function initOpacity() {
     try {
         const saved = await SiteService.LoadSetting('opacity')
         if (saved) {
-            opacitySlider.value = saved
-            SiteService.SetOpacity(saved / 100)
+            const val = parseInt(saved, 10)
+            if (val >= 20 && val <= 100) {
+                opacitySlider.value = val
+                // Delay: wait for X11 window to be fully created
+                setTimeout(() => SiteService.SetOpacity(val / 100), 500)
+            }
         }
     } catch (e) {}
 }
