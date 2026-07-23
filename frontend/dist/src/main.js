@@ -10,6 +10,17 @@ let openSiteUrls = new Set()
 const $ = (sel) => document.querySelector(sel)
 const $$ = (sel) => document.querySelectorAll(sel)
 
+async function initTheme() {
+    let saved = 'indigo'
+    try {
+        saved = await SiteService.LoadSetting('theme') || 'indigo'
+    } catch (e) {}
+    document.documentElement.setAttribute('data-theme', saved)
+    document.querySelectorAll('.theme-dot').forEach(d => {
+        d.classList.toggle('active', d.dataset.theme === saved)
+    })
+}
+
 async function init() {
     try {
         hasChrome = await SiteService.HasChrome()
@@ -18,6 +29,7 @@ async function init() {
     }
     await loadSites()
     bindEvents()
+    initTheme()
     handleOpenParam()
     startIPCPolling()
     startOpenStatePolling()
@@ -392,6 +404,16 @@ function bindEvents() {
             e.preventDefault()
             showAddModal()
         }
+    })
+
+    document.querySelectorAll('.theme-dot').forEach(dot => {
+        dot.addEventListener('click', () => {
+            const theme = dot.dataset.theme
+            document.documentElement.setAttribute('data-theme', theme)
+            SiteService.SaveSettings('theme', theme)
+            document.querySelectorAll('.theme-dot').forEach(d => d.classList.remove('active'))
+            dot.classList.add('active')
+        })
     })
 }
 

@@ -7,9 +7,9 @@
     --text-primary: #cdd6f4;
     --text-secondary: #a6adc8;
     --text-muted: #6c7086;
-    --accent: #6366f1;
-    --accent-hover: #818cf8;
-    --accent-dim: rgba(99, 102, 241, 0.15);
+    --accent: #818cf8;
+    --accent-hover: #a5b4fc;
+    --accent-dim: rgba(129, 140, 248, 0.15);
     --danger: #f38ba8;
     --border: #313244;
     --shadow: rgba(0, 0, 0, 0.3);
@@ -17,6 +17,30 @@
     --radius-sm: 6px;
     --sidebar-width: 260px;
     --transition: 0.2s ease;
+}
+
+[data-theme="cyan"] {
+    --accent: #22d3ee;
+    --accent-hover: #67e8f9;
+    --accent-dim: rgba(34, 211, 238, 0.15);
+}
+
+[data-theme="rose"] {
+    --accent: #fb7185;
+    --accent-hover: #fda4af;
+    --accent-dim: rgba(251, 113, 133, 0.15);
+}
+
+[data-theme="amber"] {
+    --accent: #fbbf24;
+    --accent-hover: #fcd34d;
+    --accent-dim: rgba(251, 191, 36, 0.15);
+}
+
+[data-theme="emerald"] {
+    --accent: #34d399;
+    --accent-hover: #6ee7b7;
+    --accent-dim: rgba(52, 211, 153, 0.15);
 }
 
 * {
@@ -72,6 +96,7 @@ body {
 
 .logo-icon {
     font-size: 22px;
+    color: var(--accent);
 }
 
 .logo-text {
@@ -310,7 +335,8 @@ body {
 
 .welcome-icon {
     font-size: 64px;
-    opacity: 0.3;
+    opacity: 0.25;
+    color: var(--text-secondary);
 }
 
 .welcome-title {
@@ -368,6 +394,52 @@ body {
     height: 100%;
     border: none;
     background: white;
+}
+
+/* ===== Theme Panel ===== */
+.theme-panel {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.main-content:hover .theme-panel {
+    opacity: 1;
+}
+
+.theme-colors {
+    display: flex;
+    gap: 6px;
+}
+
+.theme-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--dot-color);
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: border-color 0.2s ease, transform 0.15s ease;
+    padding: 0;
+}
+
+.theme-dot:hover {
+    transform: scale(1.2);
+}
+
+.theme-dot.active {
+    border-color: var(--text-primary);
+    box-shadow: 0 0 0 2px rgba(205, 214, 244, 0.3);
 }
 
 /* ===== Modal ===== */

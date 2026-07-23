@@ -4,3 +4,5 @@ frontend/dist/node_modules/
 frontend/dist/package-lock.json
 frontend/dist/package.json
 *.exe
+*.7z
+/mingw64/

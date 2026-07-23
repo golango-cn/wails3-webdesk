@@ -93,8 +93,24 @@ export function IconPath() {
  * @param {string} url
  * @returns {$CancellablePromise<boolean>}
  */
+export function IsChromeModeSite(url) {
+    return $Call.ByID(3172901764, url);
+}
+
+/**
+ * @param {string} url
+ * @returns {$CancellablePromise<boolean>}
+ */
 export function IsSiteOpen(url) {
     return $Call.ByID(577910017, url);
+}
+
+/**
+ * @param {string} key
+ * @returns {$CancellablePromise<string>}
+ */
+export function LoadSetting(key) {
+    return $Call.ByID(4209346190, key);
 }
 
 /**
@@ -129,11 +145,43 @@ export function Reorder(ids) {
 }
 
 /**
+ * @param {string} key
+ * @param {string} value
+ * @returns {$CancellablePromise<void>}
+ */
+export function SaveSettings(key, value) {
+    return $Call.ByID(2090535178, key, value);
+}
+
+/**
+ * @param {string} url
+ * @returns {$CancellablePromise<void>}
+ */
+export function SetAutoOpen(url) {
+    return $Call.ByID(3721684425, url);
+}
+
+/**
+ * @param {boolean} hidden
+ * @returns {$CancellablePromise<void>}
+ */
+export function SetMainWindowHidden(hidden) {
+    return $Call.ByID(950805547, hidden);
+}
+
+/**
  * @param {string} title
  * @returns {$CancellablePromise<void>}
  */
 export function SetTitle(title) {
     return $Call.ByID(4197287964, title);
+}
+
+/**
+ * @returns {$CancellablePromise<void>}
+ */
+export function StartAutoOpen() {
+    return $Call.ByID(1045282113);
 }
 
 /**

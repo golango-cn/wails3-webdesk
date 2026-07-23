@@ -11,7 +11,6 @@ import (
 	"runtime"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -44,6 +43,7 @@ type SiteService struct {
 	pendingWindows   map[string]bool
 	autoOpen         string
 	mainWindowHidden bool
+	settings         map[string]string
 }
 
 func NewSiteService() *SiteService {
@@ -51,11 +51,13 @@ func NewSiteService() *SiteService {
 		sites:          make([]Site, 0),
 		openWindows:    make(map[string]uintptr),
 		pendingWindows: make(map[string]bool),
+		settings:       make(map[string]string),
 	}
 	s.chrome, s.hasChrome = findChrome()
 	iconPath := s.ensureIcon()
 	s.installDesktopEntry(iconPath)
 	s.startIPCListener()
+	s.loadSettings()
 	s.load()
 	if len(s.sites) == 0 {
 		s.sites = defaultSites()
@@ -262,9 +264,7 @@ func (s *SiteService) OpenSite(url string) error {
 	cmd.Stdout = nil
 	cmd.Stderr = nil
 	cmd.Stdin = nil
-	if runtime.GOOS != "windows" {
-		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	}
+	setChromeProcessAttr(cmd)
 	if err := cmd.Start(); err != nil {
 		s.winMu.Lock()
 		delete(s.pendingWindows, url)
@@ -531,9 +531,6 @@ func (s *SiteService) ensureIcon() string {
 	dir := filepath.Join(cacheDir, "webdesk")
 	os.MkdirAll(dir, 0755)
 	p := filepath.Join(dir, "webdesk.png")
-	if _, err := os.Stat(p); err == nil {
-		return p
-	}
 	os.WriteFile(p, iconPNG, 0644)
 	return p
 }
@@ -617,6 +614,46 @@ func (s *SiteService) save() {
 		return
 	}
 	os.WriteFile(s.configPath(), data, 0644)
+}
+
+func (s *SiteService) SaveSettings(key, value string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.settings[key] = value
+	s.saveSettings()
+}
+
+func (s *SiteService) LoadSetting(key string) string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.settings[key]
+}
+
+func (s *SiteService) settingsPath() string {
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		configDir = "."
+	}
+	dir := filepath.Join(configDir, "webdesk")
+	os.MkdirAll(dir, 0755)
+	return filepath.Join(dir, "settings.json")
+}
+
+func (s *SiteService) loadSettings() {
+	path := s.settingsPath()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+	json.Unmarshal(data, &s.settings)
+}
+
+func (s *SiteService) saveSettings() {
+	data, err := json.MarshalIndent(s.settings, "", "  ")
+	if err != nil {
+		return
+	}
+	os.WriteFile(s.settingsPath(), data, 0644)
 }
 
 func normalizeURL(url string) string {

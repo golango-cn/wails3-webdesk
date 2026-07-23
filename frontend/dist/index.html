@@ -18,7 +18,7 @@
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <div class="logo">
-                    <span class="logo-icon">⚡</span>
+                    <span class="logo-icon"><svg viewBox="0 0 32 32" width="24" height="24" fill="none"><rect x="2" y="4" width="28" height="20" rx="3" stroke="currentColor" stroke-width="1.8" opacity="0.7"/><rect x="5" y="7" width="10" height="8" rx="1.5" fill="currentColor" opacity="0.9"/><rect x="17" y="7" width="10" height="5" rx="1.5" fill="currentColor" opacity="0.5"/><rect x="5" y="17" width="22" height="4" rx="1" fill="currentColor" opacity="0.3"/><rect x="2" y="26" width="28" height="4" rx="1.5" fill="currentColor" opacity="0.2"/></svg></span>
                     <span class="logo-text">WebDesk</span>
                 </div>
             </div>
@@ -37,8 +37,17 @@
 
         <main class="main-content">
             <button class="sidebar-toggle" id="btn-sidebar-toggle" title="切换侧边栏">☰</button>
+            <div class="theme-panel" id="theme-panel">
+                <div class="theme-colors">
+                    <button class="theme-dot active" data-theme="indigo" style="--dot-color:#818cf8" title="靛蓝"></button>
+                    <button class="theme-dot" data-theme="cyan" style="--dot-color:#22d3ee" title="青蓝"></button>
+                    <button class="theme-dot" data-theme="rose" style="--dot-color:#fb7185" title="玫瑰"></button>
+                    <button class="theme-dot" data-theme="amber" style="--dot-color:#fbbf24" title="琥珀"></button>
+                    <button class="theme-dot" data-theme="emerald" style="--dot-color:#34d399" title="翠绿"></button>
+                </div>
+            </div>
             <div class="welcome-screen" id="welcome-screen">
-                <div class="welcome-icon">⚡</div>
+                <div class="welcome-icon"><svg viewBox="0 0 64 64" width="64" height="64" fill="none"><rect x="4" y="8" width="56" height="40" rx="5" stroke="currentColor" stroke-width="2.5" opacity="0.25"/><rect x="9" y="14" width="20" height="16" rx="3" fill="currentColor" opacity="0.6"/><rect x="33" y="14" width="20" height="10" rx="3" fill="currentColor" opacity="0.35"/><rect x="9" y="34" width="44" height="8" rx="2" fill="currentColor" opacity="0.2"/><rect x="4" y="52" width="56" height="8" rx="3" fill="currentColor" opacity="0.15"/></svg></div>
                 <h1 class="welcome-title">WebDesk</h1>
                 <p class="welcome-desc">从左侧选择一个站点开始，或点击「添加站点」配置你的常用网站</p>
                 <div class="welcome-shortcuts" id="welcome-shortcuts"></div>

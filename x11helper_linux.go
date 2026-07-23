@@ -266,6 +266,10 @@ func activateX11Window(wid uintptr) bool {
 	return C.activateWindow(C.ulong(wid)) != 0
 }
 
+func setChromeProcessAttr(cmd *exec.Cmd) {
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+}
+
 func isWindowValid(wid uintptr) bool {
 	return C.isWindowAlive(C.ulong(wid)) != 0
 }
