@@ -240,7 +240,15 @@ func (s *SiteService) SetOpacity(opacity float64) {
 	if opacity > 1.0 {
 		opacity = 1.0
 	}
+	// Set main window opacity
 	setLinuxWindowOpacity(opacity)
+	// Set all Chrome app windows opacity
+	value := uint32(opacity * 0xFFFFFFFF)
+	s.winMu.Lock()
+	for _, wid := range s.openWindows {
+		setWindowOpacity(wid, value)
+	}
+	s.winMu.Unlock()
 }
 
 func (s *SiteService) OpenSite(url string) error {
