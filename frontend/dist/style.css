@@ -60,7 +60,82 @@ body {
 
 .app {
     display: flex;
+    flex-direction: column;
     height: 100vh;
+}
+
+/* ===== Titlebar ===== */
+.titlebar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 38px;
+    min-height: 38px;
+    background: var(--bg-secondary);
+    border-bottom: 2px solid var(--accent);
+    padding-right: 4px;
+    -webkit-app-region: no-drag;
+}
+
+.titlebar-drag {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-left: 14px;
+    flex: 1;
+    height: 100%;
+    --wails-draggable: drag;
+}
+
+.titlebar-icon {
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+}
+
+.titlebar-title {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.titlebar-controls {
+    display: flex;
+    align-items: center;
+    height: 100%;
+}
+
+.titlebar-btn {
+    width: 40px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.titlebar-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.titlebar-btn-close:hover {
+    background: var(--danger);
+    color: #fff;
+}
+
+/* ===== App Body ===== */
+.app-body {
+    display: flex;
+    flex: 1;
+    min-height: 0;
 }
 
 /* ===== Sidebar ===== */

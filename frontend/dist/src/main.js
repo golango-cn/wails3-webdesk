@@ -1,4 +1,5 @@
 import { SiteService } from '../bindings/webdesk/index.js'
+import Window from '@wailsio/runtime/window'
 
 let sites = []
 let editingSiteId = null
@@ -6,9 +7,54 @@ let contextSiteId = null
 let hasChrome = false
 let currentSiteId = null
 let openSiteUrls = new Set()
+let isMaximised = false
 
 const $ = (sel) => document.querySelector(sel)
 const $$ = (sel) => document.querySelectorAll(sel)
+
+function updateTitle(text) {
+    $('#titlebar-title').textContent = text
+    SiteService.SetTitle(text)
+}
+
+async function initTitlebar() {
+    try {
+        isMaximised = await Window.IsMaximised()
+    } catch (e) {}
+    updateMaximizeIcon()
+
+    $('#btn-minimize').addEventListener('click', () => Window.Minimise())
+    $('#btn-maximize').addEventListener('click', async () => {
+        try {
+            await Window.ToggleMaximise()
+            isMaximised = !isMaximised
+            updateMaximizeIcon()
+        } catch (e) {}
+    })
+    $('#btn-close').addEventListener('click', () => Window.Close())
+
+    // Listen for maximize/restore changes (e.g. double-click drag area)
+    setInterval(async () => {
+        try {
+            const maximised = await Window.IsMaximised()
+            if (maximised !== isMaximised) {
+                isMaximised = maximised
+                updateMaximizeIcon()
+            }
+        } catch (e) {}
+    }, 500)
+}
+
+function updateMaximizeIcon() {
+    const btn = $('#btn-maximize')
+    if (isMaximised) {
+        btn.title = '还原'
+        btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12"><rect x="3" y="1" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.2" fill="none"/><rect x="1" y="4" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.2" fill="var(--bg-secondary)"/></svg>'
+    } else {
+        btn.title = '最大化'
+        btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12"><rect x="2" y="2" width="8" height="8" rx="1" stroke="currentColor" stroke-width="1.2" fill="none"/></svg>'
+    }
+}
 
 async function initTheme() {
     let saved = 'indigo'
@@ -30,6 +76,7 @@ async function init() {
     await loadSites()
     bindEvents()
     initTheme()
+    initTitlebar()
     handleOpenParam()
     startIPCPolling()
     startOpenStatePolling()
@@ -84,6 +131,7 @@ function startIPCPolling() {
                     }
                 } else {
                     SiteService.SetTitle(url + ' - WebDesk')
+                    updateTitle(url + ' - WebDesk')
                     document.getElementById('welcome-screen').style.display = 'none'
                     const frame = document.getElementById('site-frame')
                     frame.style.display = 'block'
@@ -213,6 +261,7 @@ async function openSite(id) {
     currentSiteId = id
 
     SiteService.SetTitle(site.name + ' - WebDesk')
+    updateTitle(site.name + ' - WebDesk')
 
     $('#welcome-screen').style.display = 'none'
     const frame = $('#site-frame')
@@ -320,6 +369,7 @@ async function deleteSite(id) {
                     frame.src = 'about:blank'
                     $('#welcome-screen').style.display = 'flex'
                     SiteService.SetTitle('WebDesk')
+                    updateTitle('WebDesk')
                 }
             } catch(e) {}
         }

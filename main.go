@@ -58,11 +58,11 @@ func main() {
 	})
 
 	app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title:            "WebDesk",
 		Width:            1280,
 		Height:           800,
 		MinWidth:         900,
 		MinHeight:        600,
+		Frameless:        true,
 		BackgroundColour: application.NewRGB(30, 30, 46),
 		URL:              startURL,
 		Hidden:           startMinimized,
