@@ -349,12 +349,15 @@ func (s *SiteService) CreateShortcut(id string) error {
 	case "windows":
 		desktopDir := filepath.Join(home, "Desktop")
 		os.MkdirAll(desktopDir, 0755)
+		exe, _ := os.Executable()
 		shortcutPath := filepath.Join(desktopDir, safeName+".url")
+		iconPath := s.ensureIcon()
 		content := "[InternetShortcut]\r\n" +
 			"URL=" + site.URL + "\r\n" +
-			"IconIndex=0\r\n"
-		if s.hasChrome && site.OpenMode == "chrome" {
-			content += "IconFile=" + s.chrome + "\r\n"
+			"IconIndex=0\r\n" +
+			"IconFile=" + iconPath + "\r\n"
+		if site.OpenMode == "chrome" {
+			content += "Exec=" + exe + " --open=" + site.URL + "\r\n"
 		}
 		return os.WriteFile(shortcutPath, []byte(content), 0644)
 

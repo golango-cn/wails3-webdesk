@@ -5,4 +5,5 @@ frontend/dist/package-lock.json
 frontend/dist/package.json
 *.exe
 *.7z
+*.syso
 /mingw64/
