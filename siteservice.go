@@ -350,16 +350,20 @@ func (s *SiteService) CreateShortcut(id string) error {
 		desktopDir := filepath.Join(home, "Desktop")
 		os.MkdirAll(desktopDir, 0755)
 		exe, _ := os.Executable()
-		shortcutPath := filepath.Join(desktopDir, safeName+".url")
-		iconPath := s.ensureIcon()
-		content := "[InternetShortcut]\r\n" +
-			"URL=" + site.URL + "\r\n" +
-			"IconIndex=0\r\n" +
-			"IconFile=" + iconPath + "\r\n"
-		if site.OpenMode == "chrome" {
-			content += "Exec=" + exe + " --open=" + site.URL + "\r\n"
+		shortcutPath := filepath.Join(desktopDir, safeName+".lnk")
+		psScript := fmt.Sprintf(
+			`$ws = New-Object -ComObject WScript.Shell; $sc = $ws.CreateShortcut('%s'); $sc.TargetPath = '%s'; $sc.Arguments = '--open=%s'; $sc.IconLocation = '%s,0'; $sc.Save()`,
+			shortcutPath, exe, site.URL, exe,
+		)
+		cmd := exec.Command("powershell", "-NoProfile", "-Command", psScript)
+		cmd.Stdout = nil
+		cmd.Stderr = nil
+		fmt.Printf("[WebDesk] CreateShortcut: path=%s exe=%s args=--open=%s\n", shortcutPath, exe, site.URL)
+		err := cmd.Run()
+		if err != nil {
+			fmt.Printf("[WebDesk] CreateShortcut error: %v\n", err)
 		}
-		return os.WriteFile(shortcutPath, []byte(content), 0644)
+		return err
 
 	default:
 		desktopDir := filepath.Join(home, "Desktop")
