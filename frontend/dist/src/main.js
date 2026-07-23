@@ -1,5 +1,5 @@
 import { SiteService } from '../bindings/webdesk/index.js'
-import Window from '@wailsio/runtime/window'
+import { Window } from '@wailsio/runtime'
 
 let sites = []
 let editingSiteId = null
