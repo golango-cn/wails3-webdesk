@@ -564,7 +564,7 @@ body {
 .opacity-slider {
     -webkit-appearance: none;
     appearance: none;
-    width: 60px;
+    width: 120px;
     height: 4px;
     background: var(--bg-active);
     border-radius: 2px;
