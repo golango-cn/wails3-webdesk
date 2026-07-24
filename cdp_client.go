@@ -59,7 +59,7 @@ func cdpFindTarget(port int, urlPrefix string, timeout time.Duration) (*cdpTarge
 		resp, err := client.Get(endpoint)
 		if err != nil {
 			fmt.Println("[WebDesk] CDP: GET /json/list failed:", err)
-			time.Sleep(1000 * time.Millisecond)
+			time.Sleep(500 * time.Millisecond)
 			continue
 		}
 		var targets []cdpTarget
@@ -71,18 +71,22 @@ func cdpFindTarget(port int, urlPrefix string, timeout time.Duration) (*cdpTarge
 			time.Sleep(1000 * time.Millisecond)
 			continue
 		}
-		fmt.Println("[WebDesk] CDP: found", len(targets), "targets")
-		for i := range targets {
-			fmt.Println("[WebDesk] CDP:   target", i, "url:", targets[i].URL, "wsURL:", targets[i].WSURL)
-			if strings.HasPrefix(targets[i].URL, urlPrefix) && targets[i].WSURL != "" {
-				return &targets[i], nil
+			fmt.Println("[WebDesk] CDP: found", len(targets), "targets")
+			// Find the LAST matching target (newest page) instead of the first
+			var lastMatch *cdpTarget
+			for i := range targets {
+				fmt.Println("[WebDesk] CDP:   target", i, "url:", targets[i].URL, "wsURL:", targets[i].WSURL)
+				if strings.HasPrefix(targets[i].URL, urlPrefix) && targets[i].WSURL != "" {
+					lastMatch = &targets[i]
+				}
+				if strings.HasPrefix(targets[i].URL+"/", urlPrefix) && targets[i].WSURL != "" {
+					lastMatch = &targets[i]
+				}
 			}
-			// Also try matching with trailing slash
-			if strings.HasPrefix(targets[i].URL+"/", urlPrefix) && targets[i].WSURL != "" {
-				return &targets[i], nil
+			if lastMatch != nil {
+				return lastMatch, nil
 			}
-		}
-		time.Sleep(1000 * time.Millisecond)
+			time.Sleep(500 * time.Millisecond)
 	}
 	return nil, fmt.Errorf("timeout finding CDP target for %s", urlPrefix)
 }
@@ -556,19 +560,19 @@ func generateFillScript(username, password string, autoLogin bool) string {
 				console.log(TAG, '>>> fill: password value="' + (pw.value ? pw.value.substring(0,2) + '***' : 'N/A') + '"');
 				console.log(TAG, '>>> fill: password value length=' + (pw.value ? pw.value.length : 0));
 				console.log(TAG, '>>> fill: auto-login scheduled in 2 seconds');
-				setTimeout(function() { clickLoginButton(); }, 2000);
+				setTimeout(function() { clickLoginButton(); }, 1000);
 			}
 		}
 
-		console.log(TAG, '=== scheduling first fill in 2s ===');
-		setTimeout(fill, 2000);
+		console.log(TAG, '=== scheduling first fill in 800ms ===');
+		setTimeout(fill, 800);
 		var count = 0;
 		var iv = setInterval(function() {
 			count++;
 			console.log(TAG, '>>> poll #' + count);
 			fill();
-			if (count >= 13 || done) clearInterval(iv);
-		}, 1500);
+			if (count >= 8 || done) clearInterval(iv);
+		}, 1000);
 		var obsCount = 0;
 		var obs = new MutationObserver(function() {
 			if (obsCount < 20) { obsCount++; setTimeout(fill, 500); } else obs.disconnect();

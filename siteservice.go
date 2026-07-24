@@ -382,23 +382,33 @@ func (s *SiteService) OpenSite(url string) error {
 	userDataDir := filepath.Join(cacheDir, "webdesk", "chrome-profile")
 	os.MkdirAll(userDataDir, 0755)
 
-	// Kill any stale Chrome processes using our user-data-dir that don't have debug port
-	s.killStaleChromeProcesses(userDataDir)
+	const debugPort = 9222
+	chromeAlreadyRunning := cdpCheckPort(debugPort)
+	fmt.Println("[WebDesk] OpenSite: debug port 9222 already active:", chromeAlreadyRunning)
 
-	// Only remove lock files if Chrome is NOT running.
-	// If Chrome is running, removing SingletonLock will break the running instance's
-	// ability to detect that another process is trying to open a URL via --app=.
-	chromeAlreadyRunning := cdpCheckPort(9222)
+	if chromeAlreadyRunning {
+		// Check if Chrome has any actual pages/targets.
+		// If the user closed all app windows, Chrome may still be running as
+		// a zombie with no pages - in that case we need to kill it and restart.
+		hasPages := s.chromeHasVisiblePages(debugPort)
+		if !hasPages {
+			fmt.Println("[WebDesk] OpenSite: Chrome running but no visible pages, killing zombie")
+			s.killAllChromeProcesses(userDataDir)
+			time.Sleep(500 * time.Millisecond)
+			chromeAlreadyRunning = false
+		}
+	}
+
 	if !chromeAlreadyRunning {
+		// Chrome not running or killed - clean up and launch fresh
+		s.killStaleChromeProcesses(userDataDir)
 		s.removeChromeLock(userDataDir)
 	}
 
-	const debugPort = 9222
-
-	// Always launch Chrome via exec.Command with --app mode.
-	// When Chrome is already running with the same --user-data-dir, it will
-	// forward the --app=URL request to the existing instance, which creates
-	// a new app window (not a browser tab). This ensures consistent --app behavior.
+	// Always use exec.Command with --app=URL to ensure app window mode.
+	// When Chrome is already running with the same --user-data-dir,
+	// the new process will forward --app=URL to the existing instance,
+	// which creates a new app window (not a browser tab).
 	args := []string{
 		"--app=" + url,
 		"--user-data-dir=" + userDataDir,
@@ -487,10 +497,10 @@ func (s *SiteService) injectAutoFillViaCDP(url string, requestedPort int) {
 	script := generateFillScript(site.Username, password, site.AutoLogin)
 
 	// Step 1: Register script on the browser level via browser WebSocket.
-	// This uses Page.addScriptToEvaluateOnNewDocument so that ANY new page
+	// Page.addScriptToEvaluateOnNewDocument ensures that ANY new page
 	// that loads will automatically run our fill script.
-	// This handles the case where a new --app window is created by Chrome
-	// and cdpFindTarget hasn't found it yet.
+	// This is the PRIMARY mechanism - it handles new --app windows
+	// even before cdpFindTarget can find them.
 	client := &http.Client{Timeout: 5 * time.Second}
 	resp, err := client.Get(fmt.Sprintf("http://127.0.0.1:%d/json/version", debugPort))
 	if err != nil {
@@ -504,7 +514,6 @@ func (s *SiteService) injectAutoFillViaCDP(url string, requestedPort int) {
 			fmt.Println("[WebDesk] CDP: registering script on browser wsURL:", wsURL)
 			bws, err := wsDial(wsURL)
 			if err == nil {
-				// Register on browser-level: this applies to ALL new pages
 				cdpCall(bws, 1, "Page.enable", nil)
 				cdpCall(bws, 2, "Page.addScriptToEvaluateOnNewDocument", map[string]interface{}{
 					"source": script,
@@ -515,12 +524,15 @@ func (s *SiteService) injectAutoFillViaCDP(url string, requestedPort int) {
 		}
 	}
 
-	// Step 2: Also find the specific target page and inject directly.
-	// This handles the case where the page is already loaded.
-	// Wait for the target page to appear
-	target, err := cdpFindTarget(debugPort, url, 20*time.Second)
+	// Step 2: Find the specific target page and inject directly as a backup.
+	// This handles the case where the page loaded before Step 1 registered,
+	// or where addScriptToEvaluateOnNewDocument didn't fire.
+	// Use a shorter timeout since Step 1 should handle most cases.
+	target, err := cdpFindTarget(debugPort, url, 10*time.Second)
 	if err != nil {
-		fmt.Println("[WebDesk] CDP: target not found:", err)
+		// Target not found is OK - Step 1's addScriptToEvaluateOnNewDocument
+		// should handle it when the page finishes loading
+		fmt.Println("[WebDesk] CDP: target not found (Step 1 should handle it):", err)
 		return
 	}
 	fmt.Println("[WebDesk] CDP: target found:", target.URL)
@@ -532,17 +544,15 @@ func (s *SiteService) injectAutoFillViaCDP(url string, requestedPort int) {
 	}
 	defer ws.close()
 
-	// Enable Page domain and register script on this specific target too
+	// Register on this specific target too and try direct evaluate
 	cdpCall(ws, 1, "Page.enable", nil)
 	cdpCall(ws, 2, "Page.addScriptToEvaluateOnNewDocument", map[string]interface{}{
 		"source": script,
 	})
-
-	// Also try Runtime.evaluate as a fallback - in case the page is already loaded
 	cdpCall(ws, 3, "Runtime.enable", nil)
 
-	// Wait a moment for the page to potentially finish loading before evaluate
-	time.Sleep(2 * time.Second)
+	// Short wait then try evaluate
+	time.Sleep(500 * time.Millisecond)
 
 	_, err = cdpCall(ws, 4, "Runtime.evaluate", map[string]interface{}{
 		"expression": script,
@@ -551,20 +561,12 @@ func (s *SiteService) injectAutoFillViaCDP(url string, requestedPort int) {
 		fmt.Println("[WebDesk] CDP: evaluate failed:", err)
 		return
 	}
-	fmt.Println("[WebDesk] CDP: script injected successfully, response:", resp)
+	fmt.Println("[WebDesk] CDP: script injected successfully")
 }
 
-// openTabViaCDP opens a new tab in an already-running Chrome instance via CDP.
-// NOTE: Currently not used by OpenSite (which always uses exec.Command for --app mode).
-// Kept as fallback. Always clears pendingWindows when done.
+// openTabViaCDP opens a new window in an already-running Chrome instance via CDP.
 func (s *SiteService) openTabViaCDP(url string, port int) {
-	defer func() {
-		s.winMu.Lock()
-		delete(s.pendingWindows, url)
-		s.winMu.Unlock()
-	}()
-
-	fmt.Println("[WebDesk] CDP: opening new tab for", url)
+	fmt.Println("[WebDesk] CDP: opening new window for", url)
 
 	// Find the browser WebSocket URL from /json/version
 	client := &http.Client{Timeout: 5 * time.Second}
@@ -590,7 +592,7 @@ func (s *SiteService) openTabViaCDP(url string, port int) {
 	}
 	defer ws.close()
 
-	// Create a new tab
+	// Create a new target (page/tab) - Chrome will open it in a new window
 	result, err := cdpCall(ws, 1, "Target.createTarget", map[string]interface{}{
 		"url": url,
 	})
@@ -711,6 +713,57 @@ func cdpCheckPort(port int) bool {
 	resp.Body.Close()
 	return true
 }
+
+// chromeHasVisiblePages checks if Chrome has any page targets (not just blank/service worker targets).
+// Returns true if there are actual page targets, false if Chrome is a zombie with no pages.
+func (s *SiteService) chromeHasVisiblePages(port int) bool {
+	client := &http.Client{Timeout: 3 * time.Second}
+	resp, err := client.Get(fmt.Sprintf("http://127.0.0.1:%d/json/list", port))
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+	var targets []cdpTarget
+	json.NewDecoder(resp.Body).Decode(&targets)
+	pageCount := 0
+	for _, t := range targets {
+		if t.WSURL != "" && (strings.HasPrefix(t.URL, "http://") || strings.HasPrefix(t.URL, "https://")) {
+			pageCount++
+		}
+	}
+	fmt.Println("[WebDesk] chromeHasVisiblePages: found", pageCount, "page targets out of", len(targets), "total")
+	return pageCount > 0
+}
+
+// killAllChromeProcesses kills all Chrome processes using our user-data-dir.
+// Used when Chrome is a zombie (running but no visible pages).
+func (s *SiteService) killAllChromeProcesses(userDataDir string) {
+	switch runtime.GOOS {
+	case "windows":
+		out, err := exec.Command("wmic", "process", "where",
+			"commandline like '%webdesk\\chrome-profile%' and name='chrome.exe'",
+			"get", "processid", "/value").Output()
+		if err != nil {
+			fmt.Println("[WebDesk] wmic query failed:", err)
+			return
+		}
+		for _, line := range strings.Split(string(out), "\n") {
+			line = strings.TrimSpace(line)
+			if strings.HasPrefix(line, "ProcessId=") {
+				pid := strings.TrimPrefix(line, "ProcessId=")
+				pid = strings.TrimSpace(pid)
+				if pid != "" {
+					fmt.Println("[WebDesk] killing Chrome PID:", pid)
+					exec.Command("taskkill", "/F", "/PID", pid).Run()
+				}
+			}
+		}
+	default:
+		exec.Command("pkill", "-f", "chrome.*webdesk/chrome-profile").Run()
+	}
+	time.Sleep(500 * time.Millisecond)
+}
+
 func (s *SiteService) adoptChromeWindow(url string, existing map[uintptr]bool) {
 	defer func() {
 		s.winMu.Lock()
