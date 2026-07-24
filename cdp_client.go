@@ -287,6 +287,15 @@ func generateFillScript(username, password string, autoLogin bool) string {
 		var TAG = '[WebDesk-AutoFill]';
 		var cred = {username: ` + jsonStr(username) + `, password: ` + jsonStr(password) + `, autoLogin: ` + autoLoginJS + `};
 		console.log(TAG, '=== CDP inject START === filling form for', window.location.href);
+
+			// Check if we already logged in during this session (same app window).
+			// sessionStorage is per-window: cleared when the window is closed,
+			// so re-opening the site will trigger a fresh login.
+			var loginKey = 'webdesk_autofill_done_' + window.location.hostname;
+			if (sessionStorage.getItem(loginKey)) {
+				console.log(TAG, 'already logged in this session, skipping');
+				return;
+			}
 		console.log(TAG, 'cred: username=' + cred.username + ', autoLogin=' + cred.autoLogin);
 
 		function findPasswordField() {
@@ -531,7 +540,7 @@ func generateFillScript(username, password string, autoLogin bool) string {
 			console.log(TAG, '>>> fill: attempt start...');
 			var pw = findPasswordField();
 			if (!pw) { console.log(TAG, '>>> fill: password field not found yet'); return; }
-			if (pw.value && pw.value.length > 0) { console.log(TAG, '>>> fill: password already filled, len=' + pw.value.length); done = true; return; }
+			if (pw.value && pw.value.length > 0) { console.log(TAG, '>>> fill: password already filled, len=' + pw.value.length); done = true; sessionStorage.setItem(loginKey, '1'); return; }
 
 			var un = findUsernameField(pw);
 			var form = pw.closest('form');
@@ -554,13 +563,22 @@ func generateFillScript(username, password string, autoLogin bool) string {
 
 			console.log(TAG, '>>> fill: DONE - username="' + (un ? un.value : 'N/A') + '" password len=' + (pw.value ? pw.value.length : 0));
 
+			// Mark fill as done to stop polling
+			done = true;
+
 			if (cred.autoLogin) {
-				done = true;
-				console.log(TAG, '>>> fill: username value="' + (un ? un.value : 'N/A') + '"');
-				console.log(TAG, '>>> fill: password value="' + (pw.value ? pw.value.substring(0,2) + '***' : 'N/A') + '"');
-				console.log(TAG, '>>> fill: password value length=' + (pw.value ? pw.value.length : 0));
-				console.log(TAG, '>>> fill: auto-login scheduled in 2 seconds');
-				setTimeout(function() { clickLoginButton(); }, 1000);
+				console.log(TAG, '>>> fill: auto-login scheduled in 1 second');
+				setTimeout(function() {
+					var clicked = clickLoginButton();
+					if (clicked) {
+						// Mark as logged in so subsequent page navigations do not re-fill
+						sessionStorage.setItem(loginKey, '1');
+						console.log(TAG, '>>> login button clicked, marked session as logged in');
+					}
+				}, 1000);
+			} else {
+				// No auto-login, but still stop polling after one fill
+				console.log(TAG, '>>> fill: no auto-login, stopping polling');
 			}
 		}
 
