@@ -287,15 +287,6 @@ func generateFillScript(username, password string, autoLogin bool) string {
 		var TAG = '[WebDesk-AutoFill]';
 		var cred = {username: ` + jsonStr(username) + `, password: ` + jsonStr(password) + `, autoLogin: ` + autoLoginJS + `};
 		console.log(TAG, '=== CDP inject START === filling form for', window.location.href);
-
-			// Check if we already logged in during this session (same app window).
-			// sessionStorage is per-window: cleared when the window is closed,
-			// so re-opening the site will trigger a fresh login.
-			var loginKey = 'webdesk_autofill_done_' + window.location.hostname;
-			if (sessionStorage.getItem(loginKey)) {
-				console.log(TAG, 'already logged in this session, skipping');
-				return;
-			}
 		console.log(TAG, 'cred: username=' + cred.username + ', autoLogin=' + cred.autoLogin);
 
 		function findPasswordField() {
@@ -540,7 +531,7 @@ func generateFillScript(username, password string, autoLogin bool) string {
 			console.log(TAG, '>>> fill: attempt start...');
 			var pw = findPasswordField();
 			if (!pw) { console.log(TAG, '>>> fill: password field not found yet'); return; }
-			if (pw.value && pw.value.length > 0) { console.log(TAG, '>>> fill: password already filled, len=' + pw.value.length); done = true; sessionStorage.setItem(loginKey, '1'); return; }
+			if (pw.value && pw.value.length > 0) { console.log(TAG, '>>> fill: password already filled, len=' + pw.value.length); done = true; /* login recorded */ return; }
 
 			var un = findUsernameField(pw);
 			var form = pw.closest('form');
@@ -572,7 +563,7 @@ func generateFillScript(username, password string, autoLogin bool) string {
 					var clicked = clickLoginButton();
 					if (clicked) {
 						// Mark as logged in so subsequent page navigations do not re-fill
-						sessionStorage.setItem(loginKey, '1');
+						/* login recorded */
 						console.log(TAG, '>>> login button clicked, marked session as logged in');
 					}
 				}, 1000);
