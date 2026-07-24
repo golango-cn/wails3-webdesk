@@ -16,6 +16,20 @@ var assets embed.FS
 var iconData []byte
 
 func main() {
+	// Check for debug flag
+	debugMode := false
+	for _, arg := range os.Args[1:] {
+		if arg == "--debug" {
+			debugMode = true
+		}
+	}
+
+	// Initialize file-based logging
+	if err := initLogging(debugMode); err != nil {
+		log.Fatal("Failed to initialize logging:", err)
+	}
+	defer closeLogging()
+
 	openURL := ""
 	for _, arg := range os.Args[1:] {
 		if strings.HasPrefix(arg, "--open=") {

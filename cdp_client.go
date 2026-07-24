@@ -24,24 +24,24 @@ type cdpTarget struct {
 // waitForDebugPort reads the DevToolsActivePort file from the Chrome user data dir.
 func waitForDebugPort(userDataDir string, timeout time.Duration) (int, error) {
 	portFile := filepath.Join(userDataDir, "DevToolsActivePort")
-	fmt.Println("[WebDesk] CDP: waiting for DevToolsActivePort at:", portFile)
+	logInfo("[WebDesk] CDP: waiting for DevToolsActivePort at:", portFile)
 
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
 		data, err := os.ReadFile(portFile)
 		if err == nil {
 			lines := strings.Split(strings.TrimSpace(string(data)), "\n")
-			fmt.Println("[WebDesk] CDP: DevToolsActivePort content lines:", len(lines))
+			logInfo("[WebDesk] CDP: DevToolsActivePort content lines:", len(lines))
 			if len(lines) > 0 {
 				port, err := strconv.Atoi(strings.TrimSpace(lines[0]))
 				if err == nil && port > 0 {
-					fmt.Println("[WebDesk] CDP: parsed debug port:", port)
+					logInfo("[WebDesk] CDP: parsed debug port:", port)
 					return port, nil
 				}
-				fmt.Println("[WebDesk] CDP: failed to parse port from:", strings.TrimSpace(lines[0]), "err:", err)
+				logInfo("[WebDesk] CDP: failed to parse port from:", strings.TrimSpace(lines[0]), "err:", err)
 			}
 		} else {
-			fmt.Println("[WebDesk] CDP: DevToolsActivePort not found yet:", err)
+			logInfo("[WebDesk] CDP: DevToolsActivePort not found yet:", err)
 		}
 		time.Sleep(500 * time.Millisecond)
 	}
@@ -51,14 +51,14 @@ func waitForDebugPort(userDataDir string, timeout time.Duration) (int, error) {
 // cdpFindTarget polls the CDP HTTP endpoint to find a target matching the URL prefix.
 func cdpFindTarget(port int, urlPrefix string, timeout time.Duration) (*cdpTarget, error) {
 	endpoint := fmt.Sprintf("http://127.0.0.1:%d/json/list", port)
-	fmt.Println("[WebDesk] CDP: polling endpoint:", endpoint, "for URL prefix:", urlPrefix)
+	logInfo("[WebDesk] CDP: polling endpoint:", endpoint, "for URL prefix:", urlPrefix)
 
 	deadline := time.Now().Add(timeout)
 	client := &http.Client{Timeout: 3 * time.Second}
 	for time.Now().Before(deadline) {
 		resp, err := client.Get(endpoint)
 		if err != nil {
-			fmt.Println("[WebDesk] CDP: GET /json/list failed:", err)
+			logInfo("[WebDesk] CDP: GET /json/list failed:", err)
 			time.Sleep(500 * time.Millisecond)
 			continue
 		}
@@ -67,15 +67,15 @@ func cdpFindTarget(port int, urlPrefix string, timeout time.Duration) (*cdpTarge
 		resp.Body.Close()
 		err = json.Unmarshal(body, &targets)
 		if err != nil {
-			fmt.Println("[WebDesk] CDP: JSON parse failed:", err, "body:", string(body)[:min(200, len(body))])
+			logInfo("[WebDesk] CDP: JSON parse failed:", err, "body:", string(body)[:min(200, len(body))])
 			time.Sleep(1000 * time.Millisecond)
 			continue
 		}
-			fmt.Println("[WebDesk] CDP: found", len(targets), "targets")
+			logInfo("[WebDesk] CDP: found", len(targets), "targets")
 			// Find the LAST matching target (newest page) instead of the first
 			var lastMatch *cdpTarget
 			for i := range targets {
-				fmt.Println("[WebDesk] CDP:   target", i, "url:", targets[i].URL, "wsURL:", targets[i].WSURL)
+				logInfo("[WebDesk] CDP:   target", i, "url:", targets[i].URL, "wsURL:", targets[i].WSURL)
 				if strings.HasPrefix(targets[i].URL, urlPrefix) && targets[i].WSURL != "" {
 					lastMatch = &targets[i]
 				}
@@ -105,7 +105,7 @@ type wsConn struct {
 }
 
 func wsDial(urlStr string) (*wsConn, error) {
-	fmt.Println("[WebDesk] CDP: wsDial connecting to:", urlStr)
+	logInfo("[WebDesk] CDP: wsDial connecting to:", urlStr)
 
 	rest := strings.TrimPrefix(urlStr, "ws://")
 	slashIdx := strings.Index(rest, "/")
@@ -149,7 +149,7 @@ func wsDial(urlStr string) (*wsConn, error) {
 		return nil, fmt.Errorf("ws upgrade failed: %s", strings.Split(resp, "\r\n")[0])
 	}
 
-	fmt.Println("[WebDesk] CDP: WebSocket connected successfully")
+	logInfo("[WebDesk] CDP: WebSocket connected successfully")
 	return &wsConn{conn: conn}, nil
 }
 
@@ -251,7 +251,7 @@ func cdpCall(ws *wsConn, id int, method string, params map[string]interface{}) (
 		msg["params"] = params
 	}
 	data, _ := json.Marshal(msg)
-	fmt.Println("[WebDesk] CDP: sending command:", method, "id:", id)
+	logInfo("[WebDesk] CDP: sending command:", method, "id:", id)
 	if err := ws.sendText(string(data)); err != nil {
 		return nil, fmt.Errorf("cdp send: %w", err)
 	}
@@ -268,7 +268,7 @@ func cdpCall(ws *wsConn, id int, method string, params map[string]interface{}) (
 		if respID, ok := resp["id"]; ok {
 			idFloat, ok := respID.(float64)
 			if ok && int(idFloat) == id {
-				fmt.Println("[WebDesk] CDP: received response for id:", id)
+				logInfo("[WebDesk] CDP: received response for id:", id)
 				return resp, nil
 			}
 		}
@@ -619,38 +619,38 @@ func (s *SiteService) injectAutoFill(url string) {
 	s.mu.RUnlock()
 
 	if site == nil {
-		fmt.Println("[WebDesk] injectAutoFill: no site with credentials for", url)
+		logInfo("[WebDesk] injectAutoFill: no site with credentials for", url)
 		return
 	}
 
 	password, err := decrypt(site.Password)
 	if err != nil || password == "" {
-		fmt.Println("[WebDesk] injectAutoFill: decrypt failed for", url)
+		logInfo("[WebDesk] injectAutoFill: decrypt failed for", url)
 		return
 	}
 
-	fmt.Println("[WebDesk] injectAutoFill: site found, username:", site.Username)
+	logInfo("[WebDesk] injectAutoFill: site found, username:", site.Username)
 
 	cacheDir, _ := os.UserCacheDir()
 	userDataDir := filepath.Join(cacheDir, "webdesk", "chrome-profile")
 
 	port, err := waitForDebugPort(userDataDir, 10*time.Second)
 	if err != nil {
-		fmt.Println("[WebDesk] injectAutoFill: failed to get debug port:", err)
+		logInfo("[WebDesk] injectAutoFill: failed to get debug port:", err)
 		return
 	}
-	fmt.Println("[WebDesk] injectAutoFill: debug port =", port)
+	logInfo("[WebDesk] injectAutoFill: debug port =", port)
 
 	target, err := cdpFindTarget(port, url, 15*time.Second)
 	if err != nil {
-		fmt.Println("[WebDesk] injectAutoFill: failed to find target:", err)
+		logInfo("[WebDesk] injectAutoFill: failed to find target:", err)
 		return
 	}
-	fmt.Println("[WebDesk] injectAutoFill: target found, wsURL:", target.WSURL)
+	logInfo("[WebDesk] injectAutoFill: target found, wsURL:", target.WSURL)
 
 	ws, err := wsDial(target.WSURL)
 	if err != nil {
-		fmt.Println("[WebDesk] injectAutoFill: ws connect failed:", err)
+		logInfo("[WebDesk] injectAutoFill: ws connect failed:", err)
 		return
 	}
 	defer ws.close()
@@ -663,8 +663,8 @@ func (s *SiteService) injectAutoFill(url string) {
 		"awaitPromise": false,
 	})
 	if err != nil {
-		fmt.Println("[WebDesk] injectAutoFill: evaluate failed:", err)
+		logInfo("[WebDesk] injectAutoFill: evaluate failed:", err)
 		return
 	}
-	fmt.Println("[WebDesk] injectAutoFill: script injected, response:", resp)
+	logInfo("[WebDesk] injectAutoFill: script injected, response:", resp)
 }

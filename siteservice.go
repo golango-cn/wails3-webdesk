@@ -384,7 +384,7 @@ func (s *SiteService) OpenSite(url string) error {
 
 	const debugPort = 9222
 	chromeAlreadyRunning := cdpCheckPort(debugPort)
-	fmt.Println("[WebDesk] OpenSite: debug port 9222 already active:", chromeAlreadyRunning)
+	logInfo("[WebDesk] OpenSite: debug port 9222 already active:", chromeAlreadyRunning)
 
 	if chromeAlreadyRunning {
 		// Check if Chrome has any actual pages/targets.
@@ -392,7 +392,7 @@ func (s *SiteService) OpenSite(url string) error {
 		// a zombie with no pages - in that case we need to kill it and restart.
 		hasPages := s.chromeHasVisiblePages(debugPort)
 		if !hasPages {
-			fmt.Println("[WebDesk] OpenSite: Chrome running but no visible pages, killing zombie")
+			logInfo("[WebDesk] OpenSite: Chrome running but no visible pages, killing zombie")
 			s.killAllChromeProcesses(userDataDir)
 			time.Sleep(500 * time.Millisecond)
 			chromeAlreadyRunning = false
@@ -423,20 +423,20 @@ func (s *SiteService) OpenSite(url string) error {
 		"--load-extension=" + s.extensionDir(),
 	}
 
-	fmt.Println("[WebDesk] OpenSite: launching Chrome with args:", strings.Join(args, " "))
+	logInfo("[WebDesk] OpenSite: launching Chrome with args:", strings.Join(args, " "))
 	cmd := exec.Command(s.chrome, args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stdout = logWriter()
+	cmd.Stderr = logWriter()
 	cmd.Stdin = nil
 	setChromeProcessAttr(cmd)
 	if err := cmd.Start(); err != nil {
-		fmt.Println("[WebDesk] OpenSite: Chrome launch failed:", err)
+		logInfo("[WebDesk] OpenSite: Chrome launch failed:", err)
 		s.winMu.Lock()
 		delete(s.pendingWindows, url)
 		s.winMu.Unlock()
 		return err
 	}
-	fmt.Println("[WebDesk] OpenSite: Chrome process started, PID:", cmd.Process.Pid)
+	logInfo("[WebDesk] OpenSite: Chrome process started, PID:", cmd.Process.Pid)
 	go s.adoptChromeWindow(url, existingWindows)
 
 	// Inject auto-fill via CDP
@@ -474,25 +474,25 @@ func (s *SiteService) injectAutoFillViaCDP(url string, requestedPort int) {
 	s.mu.RUnlock()
 
 	if site == nil {
-		fmt.Println("[WebDesk] CDP: no credentials for", url)
+		logInfo("[WebDesk] CDP: no credentials for", url)
 		return
 	}
 
 	password, err := decrypt(site.Password)
 	if err != nil || password == "" {
-		fmt.Println("[WebDesk] CDP: decrypt failed")
+		logInfo("[WebDesk] CDP: decrypt failed")
 		return
 	}
 
-	fmt.Println("[WebDesk] CDP: injecting auto-fill for", url, "username:", site.Username)
+	logInfo("[WebDesk] CDP: injecting auto-fill for", url, "username:", site.Username)
 
 	// Strategy: find the actual debug port Chrome is using.
 	debugPort := s.findDebugPort(requestedPort)
 	if debugPort == 0 {
-		fmt.Println("[WebDesk] CDP: could not find any debug port, giving up")
+		logInfo("[WebDesk] CDP: could not find any debug port, giving up")
 		return
 	}
-	fmt.Println("[WebDesk] CDP: using debug port:", debugPort)
+	logInfo("[WebDesk] CDP: using debug port:", debugPort)
 
 	script := generateFillScript(site.Username, password, site.AutoLogin)
 
@@ -504,21 +504,21 @@ func (s *SiteService) injectAutoFillViaCDP(url string, requestedPort int) {
 	client := &http.Client{Timeout: 5 * time.Second}
 	resp, err := client.Get(fmt.Sprintf("http://127.0.0.1:%d/json/version", debugPort))
 	if err != nil {
-		fmt.Println("[WebDesk] CDP: /json/version failed:", err)
+		logInfo("[WebDesk] CDP: /json/version failed:", err)
 	} else {
 		var versionInfo map[string]interface{}
 		json.NewDecoder(resp.Body).Decode(&versionInfo)
 		resp.Body.Close()
 		wsURL, _ := versionInfo["webSocketDebuggerUrl"].(string)
 		if wsURL != "" {
-			fmt.Println("[WebDesk] CDP: registering script on browser wsURL:", wsURL)
+			logInfo("[WebDesk] CDP: registering script on browser wsURL:", wsURL)
 			bws, err := wsDial(wsURL)
 			if err == nil {
 				cdpCall(bws, 1, "Page.enable", nil)
 				cdpCall(bws, 2, "Page.addScriptToEvaluateOnNewDocument", map[string]interface{}{
 					"source": script,
 				})
-				fmt.Println("[WebDesk] CDP: browser-level script registered OK")
+				logInfo("[WebDesk] CDP: browser-level script registered OK")
 				bws.close()
 			}
 		}
@@ -532,14 +532,14 @@ func (s *SiteService) injectAutoFillViaCDP(url string, requestedPort int) {
 	if err != nil {
 		// Target not found is OK - Step 1's addScriptToEvaluateOnNewDocument
 		// should handle it when the page finishes loading
-		fmt.Println("[WebDesk] CDP: target not found (Step 1 should handle it):", err)
+		logInfo("[WebDesk] CDP: target not found (Step 1 should handle it):", err)
 		return
 	}
-	fmt.Println("[WebDesk] CDP: target found:", target.URL)
+	logInfo("[WebDesk] CDP: target found:", target.URL)
 
 	ws, err := wsDial(target.WSURL)
 	if err != nil {
-		fmt.Println("[WebDesk] CDP: ws connect failed:", err)
+		logInfo("[WebDesk] CDP: ws connect failed:", err)
 		return
 	}
 	defer ws.close()
@@ -558,21 +558,21 @@ func (s *SiteService) injectAutoFillViaCDP(url string, requestedPort int) {
 		"expression": script,
 	})
 	if err != nil {
-		fmt.Println("[WebDesk] CDP: evaluate failed:", err)
+		logInfo("[WebDesk] CDP: evaluate failed:", err)
 		return
 	}
-	fmt.Println("[WebDesk] CDP: script injected successfully")
+	logInfo("[WebDesk] CDP: script injected successfully")
 }
 
 // openTabViaCDP opens a new window in an already-running Chrome instance via CDP.
 func (s *SiteService) openTabViaCDP(url string, port int) {
-	fmt.Println("[WebDesk] CDP: opening new window for", url)
+	logInfo("[WebDesk] CDP: opening new window for", url)
 
 	// Find the browser WebSocket URL from /json/version
 	client := &http.Client{Timeout: 5 * time.Second}
 	resp, err := client.Get(fmt.Sprintf("http://127.0.0.1:%d/json/version", port))
 	if err != nil {
-		fmt.Println("[WebDesk] CDP: /json/version failed:", err)
+		logInfo("[WebDesk] CDP: /json/version failed:", err)
 		return
 	}
 	defer resp.Body.Close()
@@ -580,14 +580,14 @@ func (s *SiteService) openTabViaCDP(url string, port int) {
 	json.NewDecoder(resp.Body).Decode(&versionInfo)
 	wsURL, _ := versionInfo["webSocketDebuggerUrl"].(string)
 	if wsURL == "" {
-		fmt.Println("[WebDesk] CDP: no browser wsURL found")
+		logInfo("[WebDesk] CDP: no browser wsURL found")
 		return
 	}
-	fmt.Println("[WebDesk] CDP: browser wsURL:", wsURL)
+	logInfo("[WebDesk] CDP: browser wsURL:", wsURL)
 
 	ws, err := wsDial(wsURL)
 	if err != nil {
-		fmt.Println("[WebDesk] CDP: ws connect to browser failed:", err)
+		logInfo("[WebDesk] CDP: ws connect to browser failed:", err)
 		return
 	}
 	defer ws.close()
@@ -597,10 +597,10 @@ func (s *SiteService) openTabViaCDP(url string, port int) {
 		"url": url,
 	})
 	if err != nil {
-		fmt.Println("[WebDesk] CDP: createTarget failed:", err)
+		logInfo("[WebDesk] CDP: createTarget failed:", err)
 		return
 	}
-	fmt.Println("[WebDesk] CDP: new tab created, response:", result)
+	logInfo("[WebDesk] CDP: new tab created, response:", result)
 }
 
 // findDebugPort tries multiple strategies to find Chrome's debug port.
@@ -615,7 +615,7 @@ func (s *SiteService) killStaleChromeProcesses(userDataDir string) {
 	}
 
 	// Debug port not active but Chrome may have a stale process
-	fmt.Println("[WebDesk] checking for stale Chrome processes...")
+	logInfo("[WebDesk] checking for stale Chrome processes...")
 
 	switch runtime.GOOS {
 	case "windows":
@@ -625,7 +625,7 @@ func (s *SiteService) killStaleChromeProcesses(userDataDir string) {
 			"commandline like '%webdesk\\chrome-profile%' and name='chrome.exe'",
 			"get", "processid", "/value").Output()
 		if err != nil {
-			fmt.Println("[WebDesk] wmic query failed:", err)
+			logInfo("[WebDesk] wmic query failed:", err)
 			return
 		}
 		for _, line := range strings.Split(string(out), "\n") {
@@ -634,7 +634,7 @@ func (s *SiteService) killStaleChromeProcesses(userDataDir string) {
 				pid := strings.TrimPrefix(line, "ProcessId=")
 				pid = strings.TrimSpace(pid)
 				if pid != "" {
-					fmt.Println("[WebDesk] killing stale Chrome PID:", pid)
+					logInfo("[WebDesk] killing stale Chrome PID:", pid)
 					exec.Command("taskkill", "/F", "/PID", pid).Run()
 				}
 			}
@@ -651,7 +651,7 @@ func (s *SiteService) killStaleChromeProcesses(userDataDir string) {
 func (s *SiteService) removeChromeLock(userDataDir string) {
 	lockFile := filepath.Join(userDataDir, "SingletonLock")
 	if _, err := os.Stat(lockFile); err == nil {
-		fmt.Println("[WebDesk] removing stale Chrome SingletonLock")
+		logInfo("[WebDesk] removing stale Chrome SingletonLock")
 		os.Remove(lockFile)
 	}
 	// Also remove SingletonCookie and SingletonSocket for good measure
@@ -661,9 +661,9 @@ func (s *SiteService) removeChromeLock(userDataDir string) {
 
 func (s *SiteService) findDebugPort(requestedPort int) int {
 	// Strategy 1: Try the port we requested (works on Linux, usually on Windows too if Chrome is fresh)
-	fmt.Println("[WebDesk] CDP: trying requested port:", requestedPort)
+	logInfo("[WebDesk] CDP: trying requested port:", requestedPort)
 	if cdpCheckPort(requestedPort) {
-		fmt.Println("[WebDesk] CDP: requested port is active")
+		logInfo("[WebDesk] CDP: requested port is active")
 		return requestedPort
 	}
 
@@ -671,7 +671,7 @@ func (s *SiteService) findDebugPort(requestedPort int) int {
 	cacheDir, _ := os.UserCacheDir()
 	userDataDir := filepath.Join(cacheDir, "webdesk", "chrome-profile")
 	portFile := filepath.Join(userDataDir, "DevToolsActivePort")
-	fmt.Println("[WebDesk] CDP: trying DevToolsActivePort at:", portFile)
+	logInfo("[WebDesk] CDP: trying DevToolsActivePort at:", portFile)
 
 	// Wait a bit for the file to appear
 	for i := 0; i < 20; i++ {
@@ -681,7 +681,7 @@ func (s *SiteService) findDebugPort(requestedPort int) int {
 			if len(lines) > 0 {
 				port, err := strconv.Atoi(strings.TrimSpace(lines[0]))
 				if err == nil && port > 0 {
-					fmt.Println("[WebDesk] CDP: found port from DevToolsActivePort:", port)
+					logInfo("[WebDesk] CDP: found port from DevToolsActivePort:", port)
 					if cdpCheckPort(port) {
 						return port
 					}
@@ -692,10 +692,10 @@ func (s *SiteService) findDebugPort(requestedPort int) int {
 	}
 
 	// Strategy 3: Scan common debug ports (9222-9240)
-	fmt.Println("[WebDesk] CDP: scanning ports 9222-9240")
+	logInfo("[WebDesk] CDP: scanning ports 9222-9240")
 	for port := 9222; port <= 9240; port++ {
 		if cdpCheckPort(port) {
-			fmt.Println("[WebDesk] CDP: found active debug port:", port)
+			logInfo("[WebDesk] CDP: found active debug port:", port)
 			return port
 		}
 	}
@@ -731,7 +731,7 @@ func (s *SiteService) chromeHasVisiblePages(port int) bool {
 			pageCount++
 		}
 	}
-	fmt.Println("[WebDesk] chromeHasVisiblePages: found", pageCount, "page targets out of", len(targets), "total")
+	logInfo("[WebDesk] chromeHasVisiblePages: found", pageCount, "page targets out of", len(targets), "total")
 	return pageCount > 0
 }
 
@@ -744,7 +744,7 @@ func (s *SiteService) killAllChromeProcesses(userDataDir string) {
 			"commandline like '%webdesk\\chrome-profile%' and name='chrome.exe'",
 			"get", "processid", "/value").Output()
 		if err != nil {
-			fmt.Println("[WebDesk] wmic query failed:", err)
+			logInfo("[WebDesk] wmic query failed:", err)
 			return
 		}
 		for _, line := range strings.Split(string(out), "\n") {
@@ -753,7 +753,7 @@ func (s *SiteService) killAllChromeProcesses(userDataDir string) {
 				pid := strings.TrimPrefix(line, "ProcessId=")
 				pid = strings.TrimSpace(pid)
 				if pid != "" {
-					fmt.Println("[WebDesk] killing Chrome PID:", pid)
+					logInfo("[WebDesk] killing Chrome PID:", pid)
 					exec.Command("taskkill", "/F", "/PID", pid).Run()
 				}
 			}

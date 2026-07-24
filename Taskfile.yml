@@ -7,9 +7,19 @@ tasks:
       - wails3 dev
 
   build:
-    desc: Build production binary
+    desc: Build production binary (Linux)
     cmds:
       - go build -tags gtk3 -o build/bin/webdesk .
+
+  build-windows:
+    desc: Build production binary (Windows, no console window)
+    cmds:
+      - GOOS=windows GOARCH=amd64 go build -tags gtk3 -ldflags="-H windowsgui" -o build/bin/webdesk.exe .
+
+  build-windows-debug:
+    desc: Build debug binary (Windows, with console window + verbose logging)
+    cmds:
+      - GOOS=windows GOARCH=amd64 go build -tags gtk3 -o build/bin/webdesk-debug.exe .
 
   clean:
     desc: Clean build artifacts
