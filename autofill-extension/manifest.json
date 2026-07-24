@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "WebDesk AutoFill",
+  "version": "1.0",
+  "description": "Auto-fill login forms for WebDesk sites",
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["credentials.js", "content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

@@ -189,11 +189,12 @@ function renderSidebar() {
         html += `<div class="category-header">${escapeHtml(category)}</div>`
         items.forEach(site => {
             const modeTag = site.openMode === 'chrome' ? '<span class="mode-badge">Chrome</span>' : ''
+            const credTag = site.username ? '<span class="mode-badge cred-badge">🔑</span>' : ''
             html += `
                 <div class="site-item" data-id="${site.id}">
                     <div class="site-icon">${site.icon || '🌐'}</div>
                     <div class="site-info">
-                        <div class="site-name">${escapeHtml(site.name)} ${modeTag}</div>
+                        <div class="site-name">${escapeHtml(site.name)} ${modeTag}${credTag}</div>
                         <div class="site-url-preview">${escapeHtml(shortenUrl(site.url))}</div>
                     </div>
                     <span class="context-trigger" data-id="${site.id}">⋮</span>
@@ -248,7 +249,8 @@ async function openSite(id) {
     const site = sites.find(s => s.id === id)
     if (!site) return
 
-    if (site.openMode === 'chrome') {
+    // Sites with credentials always use Chrome mode for auto-login
+    if (site.openMode === 'chrome' || site.username) {
         if (hasChrome) {
             SiteService.OpenSite(site.url)
         } else {
@@ -302,6 +304,10 @@ function showAddModal() {
     $('#input-icon').value = '🌐'
     $('#input-category').value = '常用'
     $('#input-openmode').value = 'embed'
+    $('#input-username').value = ''
+    $('#input-password').value = ''
+    $('#input-password').placeholder = '登录密码'
+    $('#input-autologin').checked = true
     $('#site-modal').style.display = ''
     $('#context-menu').style.display = 'none'
     $('#modal-overlay').classList.add('active')
@@ -319,6 +325,10 @@ function showEditModal(id) {
     $('#input-icon').value = site.icon
     $('#input-category').value = site.category
     $('#input-openmode').value = site.openMode || 'embed'
+    $('#input-username').value = site.username || ''
+    $('#input-password').value = ''
+    $('#input-password').placeholder = site.username ? '留空则不修改' : '登录密码'
+    $('#input-autologin').checked = site.autoLogin !== false
     $('#site-modal').style.display = ''
     $('#context-menu').style.display = 'none'
     $('#modal-overlay').classList.add('active')
@@ -339,14 +349,17 @@ async function saveSite() {
     const icon = $('#input-icon').value.trim() || '🌐'
     const category = $('#input-category').value.trim() || '常用'
     const openMode = $('#input-openmode').value || 'embed'
+    const username = $('#input-username').value.trim()
+    const password = $('#input-password').value
+    const autoLogin = $('#input-autologin').checked
 
     if (!name || !url) return
 
     try {
         if (editingSiteId) {
-            await SiteService.Update(editingSiteId, name, url, icon, category, openMode)
+            await SiteService.Update(editingSiteId, name, url, icon, category, openMode, username, password, autoLogin)
         } else {
-            await SiteService.Create(name, url, icon, category, openMode)
+            await SiteService.Create(name, url, icon, category, openMode, username, password, autoLogin)
         }
         await loadSites()
         hideModal()
@@ -417,6 +430,12 @@ function bindEvents() {
 
     $('#input-url').addEventListener('keydown', (e) => {
         if (e.key === 'Enter') saveSite()
+    })
+
+    // Password visibility toggle
+    $('#btn-password-toggle').addEventListener('click', () => {
+        const pw = $('#input-password')
+        pw.type = pw.type === 'password' ? 'text' : 'password'
     })
 
     $('#ctx-edit').addEventListener('click', () => {

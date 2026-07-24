@@ -54,6 +54,28 @@ export class Site {
              */
             this["openMode"] = "";
         }
+        if (!("username" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["username"] = "";
+        }
+        if (!("password" in $$source)) {
+            /**
+             * encrypted, AES-GCM with machine key
+             * @member
+             * @type {string}
+             */
+            this["password"] = "";
+        }
+        if (!("autoLogin" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["autoLogin"] = false;
+        }
         if (!("sortOrder" in $$source)) {
             /**
              * @member

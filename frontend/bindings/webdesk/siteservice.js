@@ -23,10 +23,13 @@ export function ChromePath() {
  * @param {string} icon
  * @param {string} category
  * @param {string} openMode
+ * @param {string} username
+ * @param {string} password
+ * @param {boolean} autoLogin
  * @returns {$CancellablePromise<$models.Site>}
  */
-export function Create(name, url, icon, category, openMode) {
-    return $Call.ByID(2359525438, name, url, icon, category, openMode).then(/** @type {($result: any) => any} */(($result) => {
+export function Create(name, url, icon, category, openMode, username, password, autoLogin) {
+    return $Call.ByID(2359525438, name, url, icon, category, openMode, username, password, autoLogin).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType0($result);
     }));
 }
@@ -72,6 +75,18 @@ export function GetByCategory(category) {
 export function GetCategories() {
     return $Call.ByID(182115718).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType2($result);
+    }));
+}
+
+/**
+ * GetCredentials returns decrypted username and password for a site by URL.
+ * Used by the auto-fill extension.
+ * @param {string} url
+ * @returns {$CancellablePromise<{ [_ in string]?: string }>}
+ */
+export function GetCredentials(url) {
+    return $Call.ByID(217521600, url).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType3($result);
     }));
 }
 
@@ -199,10 +214,13 @@ export function StartAutoOpen() {
  * @param {string} icon
  * @param {string} category
  * @param {string} openMode
+ * @param {string} username
+ * @param {string} password
+ * @param {boolean} autoLogin
  * @returns {$CancellablePromise<void>}
  */
-export function Update(id, name, url, icon, category, openMode) {
-    return $Call.ByID(4089335683, id, name, url, icon, category, openMode);
+export function Update(id, name, url, icon, category, openMode, username, password, autoLogin) {
+    return $Call.ByID(4089335683, id, name, url, icon, category, openMode, username, password, autoLogin);
 }
 
 /**
@@ -212,7 +230,17 @@ export function WindowFocus() {
     return $Call.ByID(2004424906);
 }
 
+/**
+ * GetAutoLoginSites returns all sites that have auto-login enabled.
+ * Writes credentials to a JSON file for the Chrome extension to read.
+ * @returns {$CancellablePromise<void>}
+ */
+export function WriteCredentialsForExtension() {
+    return $Call.ByID(2217848841);
+}
+
 // Private type creation functions
 const $$createType0 = $models.Site.createFrom;
 const $$createType1 = $Create.Array($$createType0);
 const $$createType2 = $Create.Array($Create.Any);
+const $$createType3 = $Create.Map($Create.Any, $Create.Any);

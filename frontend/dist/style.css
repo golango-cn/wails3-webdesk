@@ -340,6 +340,11 @@ body {
     margin-left: 4px;
 }
 
+.cred-badge {
+    background: rgba(166, 227, 161, 0.15);
+    color: #a6e3a1;
+}
+
 .site-item .context-trigger {
     opacity: 0;
     padding: 2px 6px;
@@ -708,6 +713,62 @@ select.form-input {
 
 .form-input::placeholder {
     color: var(--text-muted);
+}
+
+.label-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 400;
+}
+
+.password-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.password-input {
+    padding-right: 36px !important;
+    width: 100%;
+}
+
+.password-toggle {
+    position: absolute;
+    right: 8px;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 2px;
+    display: flex;
+    align-items: center;
+    transition: color var(--transition);
+}
+
+.password-toggle:hover {
+    color: var(--text-primary);
+}
+
+.form-group-row {
+    flex-direction: row !important;
+    align-items: center;
+    gap: 8px !important;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text-primary);
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--accent);
+    cursor: pointer;
 }
 
 .icon-picker {

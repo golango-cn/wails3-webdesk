@@ -135,6 +135,26 @@
                         <option value="chrome">Chrome 打开</option>
                     </select>
                 </div>
+                <div class="form-group">
+                    <label for="input-username">用户名 <span class="label-hint">(自动登录用)</span></label>
+                    <input type="text" id="input-username" placeholder="登录用户名" class="form-input" autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label for="input-password">密码</label>
+                    <div class="password-input-wrapper">
+                        <input type="password" id="input-password" placeholder="留空则不修改" class="form-input password-input" autocomplete="new-password">
+                        <button type="button" class="password-toggle" id="btn-password-toggle" title="显示/隐藏密码">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 3C4.5 3 1.7 5.1.5 8c1.2 2.9 4 5 7.5 5s6.3-2.1 7.5-5C14.3 5.1 11.5 3 8 3zm0 8a3 3 0 110-6 3 3 0 010 6zm0-5a2 2 0 100 4 2 2 0 000-4z"/></svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="form-group form-group-row">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="input-autologin" checked>
+                        <span>自动登录</span>
+                    </label>
+                    <span class="label-hint">填充后自动提交表单</span>
+                </div>
             </div>
             <div class="modal-footer">
                 <button class="btn-cancel" id="btn-cancel">取消</button>
